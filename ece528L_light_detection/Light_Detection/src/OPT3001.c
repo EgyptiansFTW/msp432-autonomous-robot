@@ -80,7 +80,7 @@ OPT3001_Config Read_Sensor_Configuration;
  */
 static void OPT3001_Write_Data(OPT3001_Commands command)
 {
-
+    EUSCI_B1_I2C_Send_Multiple_Bytes(OPT3001_ADDRESS, &command, 1);
 }
 
 /**
@@ -92,7 +92,9 @@ static void OPT3001_Write_Data(OPT3001_Commands command)
  */
 static void OPT3001_Read_Data(uint16_t* data)
 {
-
+ uint8_t buffer[2];
+ EUSCI_B1_I2C_Receive_Multiple_Bytes(OPT3001_ADDRESS, buffer,2);
+ *data = buffer[1] + ((uint16_t)buffer[0] << 8);
 }
 
 /**
@@ -110,6 +112,7 @@ OPT3001_Result static OPT3001_Read_Register(OPT3001_Commands command)
     return result;
 }
 
+
 /**
  * @brief This function writes a 16-bit value to a specific register on the OPT3001 sensor via I2C communication.
  *
@@ -120,7 +123,15 @@ OPT3001_Result static OPT3001_Read_Register(OPT3001_Commands command)
  */
 static void OPT3001_Write_Register(uint8_t register_address, uint16_t register_data)
 {
+    uint8_t buffer[] =
+    {
+        register_address,
+        (register_data >> 8) & 0xFF,
+        register_data & 0xFF,
+    };
 
+    EUSCI_B1_I2C_Send_Multiple_Bytes(OPT3001_ADDRESS, buffer, sizeof(buffer));
+    Clock_Delay1us(10);
 }
 
 /**
@@ -132,8 +143,9 @@ static void OPT3001_Write_Register(uint8_t register_address, uint16_t register_d
  */
 static void OPT3001_Write_Configuration(OPT3001_Config config)
 {
-
+    OPT3001_Write_Register(CONFIG, config.RawData);
 }
+
 
 /**
  * @brief This function reads the configuration from the OPT3001 sensor and returns it in an OPT3001_Config struct
@@ -152,10 +164,65 @@ OPT3001_Config static OPT3001_Read_Configuration()
 
 void OPT3001_Init()
 {
+    // Configure the P4.5 and P4.2 pins as GPIO pins
+    // by clearing Bit 5 and Bit 2 in the SEL0 and SEL1 registers
+    P4->SEL0 &= ~0x24;
+    P4->SEL1 &= ~0x24;
 
+    // Configure the P4.2 pin as an input GPIO pin by
+    // clearing Bit 2 in the DIR register
+    P4->DIR &= ~0x04;
+
+    // Enable the internal pull-up resistor for the P4.2 pin
+    // by setting Bit 2 in the REN register
+    P4->REN |= 0x04;
+
+    // Initialize the value of the P4.2 to high since an open-drain
+    // signal is high by default
+    P4->OUT |= 0x04;
+
+    // Configure the P4.5 pin as an output GPIO pin by
+    // setting Bit 5 in the DIR register
+    P4->DIR |= 0x20;
+
+    // Initialize the value of the P4.5 to high to power the OPT3001
+    P4->OUT |= 0x20;
+
+    // Provide a short delay of 1 millisecond after configuring the P4.5 and P4.2 pins
+    Clock_Delay1ms(1);
+
+    // Instantiate a new configuration struct that will be used to modify the
+    // configuration settings of the OPT3001
+    OPT3001_Config New_Config;
+
+    // Set RN (Bits 15-12) to 0x0C
+    // This configures the device to operate in automatic
+    // full-scale setting mode
+    New_Config.RangeNumber = 0x0C; // full automatic scale
+
+    // Set CT (Bit 11) of Configuration Register to 0
+    // This sets the conversion time to 100 ms
+    // If CT = 1, then the conversion time would be 800 ms,
+    // allowing for lower noise measurement
+    New_Config.ConversionTime = 0;
+
+    // Set L (Bit 4) to 1
+    // This configures the device to function in latched window-style
+    // comparison operation, latching the interrupt reporting mechanisms
+    // until a user-controlled clearing event
+    New_Config.Latch = 1;
+
+    // Set M (Bits 10-9) to 3
+    // This configures the device to perform continuous conversions
+    New_Config.ModeOfConversionOperation = 3;
+
+    // Write the new configuration values to the OPT3001 configuration register
+    OPT3001_Write_Configuration(New_Config);
+
+    // Assign the configuration settings of the OPT3001 to another struct
+    Read_Sensor_Configuration = OPT3001_Read_Configuration();
 }
-
-OPT3001_Result OPT3001_Read_Light()
+    OPT3001_Result OPT3001_Read_Light()
 {
     // Read the Result Register (offset = 00h)
     // This register contains the most recent light to digital conversion
