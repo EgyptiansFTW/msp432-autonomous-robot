@@ -125,15 +125,8 @@ The project was developed using an incremental build-and-test approach so that e
 
 ## Project Demonstration (Video Links)
 
-Add your demo links here after uploading videos to GitHub, YouTube, Google Drive, or another hosting platform.
-
-- Demo 1: [Insert link here]
-- Demo 2: [Insert link here]
-
-Suggested demo coverage:
-- normal forward movement
-- obstacle detection and turning
-- PIR response to motion from a person or pet
+https://www.youtube.com/shorts/3vcexs8FA30?feature=share
+https://github.com/EgyptiansFTW/msp432-autonomous-robot.git
 
 ## Limitations
 
@@ -158,5 +151,5 @@ The final result is a functional proof of concept showing how multiple sensor in
 
 ## Authors
 
-- [Your Name]
+- Mark Attia
 
